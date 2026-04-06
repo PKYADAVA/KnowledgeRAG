@@ -1,5 +1,7 @@
 """DRF serializers for chat models."""
+from typing import Optional
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from .models import ChatSession, Message
 
 
@@ -11,7 +13,7 @@ class MessageSerializer(serializers.ModelSerializer):
 
 
 class ChatSessionSerializer(serializers.ModelSerializer):
-    message_count = serializers.ReadOnlyField()
+    message_count = serializers.IntegerField(read_only=True)
     last_message_content = serializers.SerializerMethodField()
 
     class Meta:
@@ -19,6 +21,7 @@ class ChatSessionSerializer(serializers.ModelSerializer):
         fields = ("id", "title", "message_count", "last_message_content", "created_at", "updated_at")
         read_only_fields = ("id", "created_at", "updated_at")
 
-    def get_last_message_content(self, obj):
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_last_message_content(self, obj) -> Optional[str]:
         msg = obj.last_message
         return msg.content[:100] if msg else None

@@ -34,6 +34,7 @@ THIRD_PARTY_APPS = [
     "rest_framework",
     "corsheaders",
     "django_extensions",
+    "drf_spectacular",
 ]
 
 LOCAL_APPS = [
@@ -159,6 +160,7 @@ CELERY_TASK_ROUTES = {
 
 # ─── REST Framework ────────────────────────────────────────────────────────────
 REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
     ],
@@ -175,6 +177,19 @@ REST_FRAMEWORK = {
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+}
+
+# ─── API Schema (drf-spectacular) ─────────────────────────────────────────────
+SPECTACULAR_SETTINGS = {
+    "TITLE": "KnowledgeRAG API",
+    "DESCRIPTION": "REST API for document ingestion, RAG-powered chat, and knowledge retrieval.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SWAGGER_UI_SETTINGS": {
+        "persistAuthorization": True,
+        "displayRequestDuration": True,
+    },
 }
 
 # ─── File Upload ───────────────────────────────────────────────────────────────

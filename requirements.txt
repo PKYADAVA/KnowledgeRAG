@@ -36,6 +36,9 @@ python-docx==1.1.2
 unstructured==0.14.10
 python-magic==0.4.27
 
+# ─── API Documentation ──────────────────────────────────────────────────────────
+drf-spectacular==0.27.2
+
 # ─── Utilities ──────────────────────────────────────────────────────────────────
 Pillow==10.4.0
 python-decouple==3.8

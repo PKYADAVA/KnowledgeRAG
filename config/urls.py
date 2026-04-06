@@ -4,6 +4,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 urlpatterns = [
     # Admin
@@ -20,6 +21,11 @@ urlpatterns = [
 
     # DRF API (optional, for external integrations)
     path("api/", include("config.api_urls")),
+
+    # API Schema & Docs
+    path("api/schema/", SpectacularAPIView.as_view(), name="api-schema"),
+    path("api/docs/", SpectacularSwaggerView.as_view(url_name="api-schema"), name="swagger-ui"),
+    path("api/redoc/", SpectacularRedocView.as_view(url_name="api-schema"), name="redoc"),
 ]
 
 # Serve media in development

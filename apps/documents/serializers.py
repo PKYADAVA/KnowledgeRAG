@@ -10,9 +10,9 @@ class DocumentChunkSerializer(serializers.ModelSerializer):
 
 
 class DocumentSerializer(serializers.ModelSerializer):
-    file_size_display = serializers.ReadOnlyField()
-    filename = serializers.ReadOnlyField()
-    is_ready = serializers.ReadOnlyField()
+    file_size_display = serializers.CharField(read_only=True)
+    filename = serializers.CharField(read_only=True)
+    is_ready = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Document
