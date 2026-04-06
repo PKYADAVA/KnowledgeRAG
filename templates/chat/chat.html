@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% load chat_filters %}
+{% block title %}{{ session.title|default:"Chat" }} — KnowledgeRAG{% endblock %}
+{% block main_class %}h-screen flex flex-col overflow-hidden{% endblock %}
+
+{% block content %}
+<div class="flex-1 flex overflow-hidden" style="height: calc(100vh - 3.5rem);">
+
+  <!-- ── LEFT SIDEBAR ── -->
+  <aside class="w-64 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col overflow-hidden"
+         x-data="{ sidebarOpen: true }">
+
+    <!-- Sidebar header -->
+    <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+      <span class="font-semibold text-sm text-gray-800">Documents</span>
+      <a href="{% url 'chat:list' %}" class="text-xs text-gray-400 hover:text-gray-600">All chats →</a>
+    </div>
+
+    <!-- Document selector (HTMX) -->
+    <div id="doc-selector-panel" class="flex-1 overflow-y-auto p-3">
+      {% include "chat/partials/doc_selector.html" %}
+    </div>
+
+    <!-- New chat button -->
+    <div class="p-3 border-t border-gray-100">
+      <a href="{% url 'chat:new' %}"
+         class="block w-full text-center py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+        + New Chat
+      </a>
+    </div>
+  </aside>
+
+  <!-- ── MAIN CHAT AREA ── -->
+  <div class="flex-1 flex flex-col overflow-hidden bg-gray-50">
+
+    <!-- Chat header -->
+    <div class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm">
+      <div>
+        <h1 class="font-semibold text-gray-900 text-sm">
+          {{ session.title|default:"New Conversation" }}
+        </h1>
+        <p class="text-xs text-gray-400 mt-0.5">
+          {% with doc_count=session.documents.count %}
+          {% if doc_count %}{{ doc_count }} document{{ doc_count|pluralize }} selected{% else %}No documents selected{% endif %}
+          {% endwith %}
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- Delete session -->
+        <button
+          hx-post="{% url 'chat:delete' session.id %}"
+          hx-confirm="Delete this chat session?"
+          hx-push-url="/chat/"
+          class="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Message window -->
+    <div id="chat-messages"
+         class="flex-1 overflow-y-auto chat-scroll px-4 py-4 space-y-2">
+
+      <!-- Greeting / empty state -->
+      {% if not messages %}
+      <div class="flex flex-col items-center justify-center h-full text-center py-12">
+        <div class="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center mb-4">
+          <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3H9z"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold text-gray-700 mb-2">Ask me anything</h3>
+        <p class="text-sm text-gray-400 max-w-sm">
+          I'll answer based on the documents you've selected.
+          {% if not session.documents.count %}Select at least one document to begin.{% endif %}
+        </p>
+        <!-- Suggested questions -->
+        {% if session.documents.count %}
+        <div class="mt-6 flex flex-wrap justify-center gap-2">
+          {% with suggestions="What are the key points?|Summarize the main topics|What conclusions are drawn?" %}
+          {% for q in suggestions|split:"|" %}
+          <button class="px-3 py-1.5 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-full transition-colors suggestion-btn">
+            {{ q }}
+          </button>
+          {% endfor %}
+          {% endwith %}
+        </div>
+        {% endif %}
+      </div>
+      {% else %}
+
+      <!-- Existing messages -->
+      {% for msg in messages %}
+        {% include "chat/partials/message_bubble.html" with msg=msg %}
+      {% endfor %}
+      {% endif %}
+    </div>
+
+    <!-- ── Input area ── -->
+    <div class="bg-white border-t border-gray-200 px-4 py-3">
+      <!-- Loading indicator -->
+      <div id="typing-indicator" class="htmx-indicator flex items-center gap-2 mb-2 text-sm text-gray-400">
+        <div class="flex gap-1">
+          <span class="w-2 h-2 rounded-full bg-gray-400 animate-pulse-dot" style="animation-delay:0ms"></span>
+          <span class="w-2 h-2 rounded-full bg-gray-400 animate-pulse-dot" style="animation-delay:200ms"></span>
+          <span class="w-2 h-2 rounded-full bg-gray-400 animate-pulse-dot" style="animation-delay:400ms"></span>
+        </div>
+        <span>Thinking...</span>
+      </div>
+
+      <form id="chat-form"
+            hx-post="{% url 'chat:send' session.id %}"
+            hx-target="#chat-messages"
+            hx-swap="beforeend"
+            hx-indicator="#typing-indicator"
+            @htmx:before-request="clearInput()"
+            @htmx:after-request="scrollBottom()"
+            x-data="chatInput()"
+            @submit.prevent
+            @keydown.enter.exact.prevent="submitOnEnter($event)"
+            @keydown.shift.enter.prevent="newline()">
+        {% csrf_token %}
+
+        <div class="flex items-end gap-2 bg-gray-100 rounded-xl px-3 py-2">
+          <textarea
+            name="query"
+            id="query-input"
+            x-model="message"
+            x-ref="input"
+            rows="1"
+            placeholder="Ask a question about your documents…"
+            class="flex-1 bg-transparent resize-none border-0 outline-none text-sm text-gray-900 placeholder-gray-400 max-h-40 overflow-y-auto"
+            @input="autoResize($event.target)"
+            :disabled="isSubmitting">
+          </textarea>
+
+          <button type="submit"
+                  :disabled="!message.trim() || isSubmitting"
+                  :class="message.trim() && !isSubmitting ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300 cursor-not-allowed'"
+                  class="flex-shrink-0 p-2 rounded-lg text-white transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+          </button>
+        </div>
+
+        <p class="text-xs text-gray-400 mt-1.5 text-center">
+          Enter to send · Shift+Enter for new line · Answers based on your documents only
+        </p>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function chatInput() {
+  return {
+    message: '',
+    isSubmitting: false,
+
+    submitOnEnter(event) {
+      if (this.message.trim()) {
+        htmx.trigger(document.getElementById('chat-form'), 'submit');
+      }
+    },
+
+    newline() {
+      this.message += '\n';
+    },
+
+    autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+    }
+  }
+}
+
+function clearInput() {
+  const input = document.getElementById('query-input');
+  if (input) {
+    input.value = '';
+    input.style.height = 'auto';
+    input._x_dataStack && (input._x_dataStack[0].message = '');
+  }
+}
+
+function scrollBottom() {
+  const chat = document.getElementById('chat-messages');
+  if (chat) setTimeout(() => { chat.scrollTop = chat.scrollHeight; }, 50);
+}
+
+// Suggested questions
+document.querySelectorAll('.suggestion-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const input = document.getElementById('query-input');
+    if (input) {
+      input.value = btn.textContent.trim();
+      input.focus();
+    }
+  });
+});
+
+// Scroll to bottom on load
+window.addEventListener('load', scrollBottom);
+</script>
+{% endblock %}

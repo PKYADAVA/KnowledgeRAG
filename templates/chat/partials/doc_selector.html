@@ -1,0 +1,38 @@
+<!-- Document selection panel — HTMX updatable -->
+<form hx-post="{% url 'chat:update-docs' session.id %}"
+      hx-target="#doc-selector-panel"
+      hx-swap="innerHTML"
+      hx-trigger="change">
+  {% csrf_token %}
+
+  {% if available_docs %}
+  <div class="space-y-1">
+    {% for doc in available_docs %}
+    <label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-gray-50 cursor-pointer group transition-colors">
+      <input type="checkbox"
+             name="documents"
+             value="{{ doc.id }}"
+             {% if doc.id|stringformat:"s" in selected_doc_ids %}checked{% endif %}
+             class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0">
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-medium text-gray-800 leading-snug line-clamp-2 group-hover:text-blue-700">
+          {{ doc.title }}
+        </p>
+        <p class="text-xs text-gray-400 mt-0.5">
+          {{ doc.file_type|upper }} · {{ doc.file_size_display }}
+        </p>
+      </div>
+    </label>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="text-center py-8">
+    <p class="text-xs text-gray-400 mb-3">No documents ready</p>
+    <a href="{% url 'documents:upload' %}"
+       class="text-xs text-blue-600 hover:text-blue-700 font-medium">
+      Upload a document →
+    </a>
+  </div>
+  {% endif %}
+</form>

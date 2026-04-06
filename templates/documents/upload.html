@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Upload Document — KnowledgeRAG{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-10">
+  <div class="mb-6">
+    <a href="{% url 'documents:dashboard' %}" class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+      ← Back to dashboard
+    </a>
+    <h1 class="text-2xl font-bold text-gray-900 mt-3">Upload Document</h1>
+    <p class="text-gray-500 mt-1">Supported: PDF, DOCX, TXT, Markdown · Max {{ MAX_UPLOAD_SIZE_MB }} MB</p>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
+       x-data="fileUploader()">
+
+    <form method="post"
+          enctype="multipart/form-data"
+          hx-post="{% url 'documents:upload' %}"
+          hx-target="#upload-result"
+          hx-swap="innerHTML"
+          hx-indicator="#upload-spinner"
+          @htmx:before-request="isSubmitting = true"
+          @htmx:after-request="isSubmitting = false">
+      {% csrf_token %}
+
+      <!-- Drop zone -->
+      <div class="mb-6"
+           @dragover.prevent="isDragging = true"
+           @dragleave="isDragging = false"
+           @drop.prevent="handleDrop($event)"
+           :class="isDragging ? 'border-blue-400 bg-blue-50' : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50/50'"
+           class="relative border-2 border-dashed rounded-xl p-10 text-center transition-all cursor-pointer"
+           @click="$refs.fileInput.click()">
+
+        <input type="file"
+               name="file"
+               id="file-upload"
+               x-ref="fileInput"
+               @change="handleFileSelect($event)"
+               accept=".pdf,.docx,.txt,.md"
+               class="hidden">
+
+        <div x-show="!selectedFile">
+          <svg class="mx-auto w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+          <p class="text-gray-600 font-medium">Drop your file here or <span class="text-blue-600">browse</span></p>
+          <p class="text-sm text-gray-400 mt-1">PDF, DOCX, TXT, MD up to {{ MAX_UPLOAD_SIZE_MB }} MB</p>
+        </div>
+
+        <div x-show="selectedFile" x-cloak class="flex items-center justify-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs"
+               x-text="fileExt"></div>
+          <div class="text-left">
+            <p class="font-medium text-gray-900" x-text="selectedFile?.name"></p>
+            <p class="text-sm text-gray-500" x-text="fileSize"></p>
+          </div>
+          <button type="button" @click.stop="clearFile()"
+                  class="ml-auto text-gray-400 hover:text-red-500">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {% if form.file.errors %}
+      <p class="mb-4 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{{ form.file.errors.0 }}</p>
+      {% endif %}
+
+      <!-- Title -->
+      <div class="mb-4">
+        <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+          Title <span class="text-red-500">*</span>
+        </label>
+        {{ form.title }}
+        {% if form.title.errors %}
+        <p class="mt-1 text-sm text-red-600">{{ form.title.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Description -->
+      <div class="mb-6">
+        <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+          Description <span class="text-gray-400">(optional)</span>
+        </label>
+        {{ form.description }}
+      </div>
+
+      <!-- Submit -->
+      <div class="flex items-center gap-4">
+        <button type="submit"
+                :disabled="!selectedFile || isSubmitting"
+                :class="(!selectedFile || isSubmitting) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'"
+                class="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-lg transition-colors">
+          <svg id="upload-spinner" class="htmx-indicator w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+          <span x-text="isSubmitting ? 'Uploading...' : 'Upload & Process'"></span>
+        </button>
+        <a href="{% url 'documents:dashboard' %}" class="text-sm text-gray-500 hover:text-gray-700">Cancel</a>
+      </div>
+    </form>
+
+    <!-- HTMX response area -->
+    <div id="upload-result" class="mt-4"></div>
+  </div>
+</div>
+
+<script>
+function fileUploader() {
+  return {
+    selectedFile: null,
+    isDragging: false,
+    isSubmitting: false,
+    fileExt: '',
+    fileSize: '',
+
+    handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) this.setFile(file);
+    },
+
+    handleDrop(event) {
+      this.isDragging = false;
+      const file = event.dataTransfer.files[0];
+      if (file) {
+        this.setFile(file);
+        // Transfer to form input
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        this.$refs.fileInput.files = dt.files;
+        // Auto-fill title from filename
+        const titleInput = document.querySelector('input[name="title"]');
+        if (titleInput && !titleInput.value) {
+          titleInput.value = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        }
+      }
+    },
+
+    setFile(file) {
+      this.selectedFile = file;
+      this.fileExt = file.name.split('.').pop().toUpperCase();
+      const mb = file.size / (1024 * 1024);
+      this.fileSize = mb < 1 ? `${(file.size / 1024).toFixed(1)} KB` : `${mb.toFixed(1)} MB`;
+      // Auto-fill title
+      const titleInput = document.querySelector('input[name="title"]');
+      if (titleInput && !titleInput.value) {
+        titleInput.value = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      }
+    },
+
+    clearFile() {
+      this.selectedFile = null;
+      this.$refs.fileInput.value = '';
+    }
+  }
+}
+</script>
+{% endblock %}

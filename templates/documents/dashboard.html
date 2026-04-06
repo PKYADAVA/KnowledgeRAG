@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — KnowledgeRAG{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Documents</h1>
+      <p class="text-gray-500 mt-1">Manage and query your knowledge base</p>
+    </div>
+    <a href="{% url 'documents:upload' %}"
+       class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+      </svg>
+      Upload Document
+    </a>
+  </div>
+
+  <!-- Stats cards -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+    {% with stats_data=stats %}
+    <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+      <p class="text-sm text-gray-500">Total</p>
+      <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.total }}</p>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm border border-green-100">
+      <p class="text-sm text-gray-500">Ready</p>
+      <p class="text-3xl font-bold text-green-600 mt-1">{{ stats.ready }}</p>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm border border-yellow-100">
+      <p class="text-sm text-gray-500">Processing</p>
+      <p class="text-3xl font-bold text-yellow-600 mt-1">{{ stats.processing }}</p>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm border border-red-100">
+      <p class="text-sm text-gray-500">Failed</p>
+      <p class="text-3xl font-bold text-red-500 mt-1">{{ stats.failed }}</p>
+    </div>
+    {% endwith %}
+  </div>
+
+  <!-- Documents grid -->
+  {% if page_obj.object_list %}
+  <div id="documents-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    {% for doc in page_obj %}
+      {% include "documents/partials/document_card.html" with doc=doc %}
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if page_obj.has_other_pages %}
+  <div class="mt-8 flex justify-center gap-2">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}"
+       class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+      Previous
+    </a>
+    {% endif %}
+    <span class="px-4 py-2 text-sm text-gray-500">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}"
+       class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+      Next
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <!-- Empty state -->
+  <div class="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-300">
+    <svg class="mx-auto w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+        d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+    </svg>
+    <h3 class="text-lg font-semibold text-gray-700 mb-2">No documents yet</h3>
+    <p class="text-gray-500 mb-6">Upload your first document to start chatting</p>
+    <a href="{% url 'documents:upload' %}"
+       class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
+      Upload your first document
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

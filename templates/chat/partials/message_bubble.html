@@ -1,0 +1,80 @@
+<!-- Single message bubble — user or assistant -->
+{% if msg.is_user %}
+<!-- User message — right aligned -->
+<div class="flex justify-end animate-slide-up">
+  <div class="max-w-[75%]">
+    <div class="bg-blue-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm">
+      <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ msg.content }}</p>
+    </div>
+    <p class="text-xs text-gray-400 text-right mt-1">{{ msg.created_at|time:"g:i A" }}</p>
+  </div>
+</div>
+
+{% else %}
+<!-- Assistant message — left aligned -->
+<div class="flex gap-3 animate-slide-up">
+  <!-- AI avatar -->
+  <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
+    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+    </svg>
+  </div>
+
+  <div class="max-w-[80%] flex-1">
+    <!-- Answer bubble -->
+    <div class="bg-white border border-gray-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+      <div class="ai-content text-sm text-gray-800 leading-relaxed">
+        {{ msg.content|linebreaksbr }}
+      </div>
+    </div>
+
+    <!-- Sources / citations -->
+    {% if msg.formatted_sources %}
+    <div class="mt-2" x-data="{ showSources: false }">
+      <button @click="showSources = !showSources"
+              class="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 transition-colors">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <span x-text="showSources ? 'Hide sources' : '{{ msg.formatted_sources|length }} source{{ msg.formatted_sources|length|pluralize }}'"></span>
+        <svg class="w-3 h-3 transition-transform" :class="showSources ? 'rotate-180' : ''"
+             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </button>
+
+      <div x-show="showSources" x-cloak x-transition class="mt-2 space-y-2">
+        {% for source in msg.formatted_sources %}
+        <div class="flex gap-3 p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs">
+          <div class="flex-shrink-0 w-5 h-5 rounded bg-blue-100 text-blue-700 font-bold flex items-center justify-center">
+            {{ source.index }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-medium text-gray-800 truncate">{{ source.document_title }}</span>
+              {% if source.page_number %}
+              <span class="text-gray-400 flex-shrink-0">· p.{{ source.page_number }}</span>
+              {% endif %}
+              <span class="ml-auto text-gray-400 flex-shrink-0">{{ source.score|floatformat:2 }}</span>
+            </div>
+            {% if source.excerpt %}
+            <p class="text-gray-500 line-clamp-2 leading-relaxed">{{ source.excerpt }}</p>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Metadata row -->
+    <div class="flex items-center gap-3 mt-1 text-xs text-gray-400">
+      <span>{{ msg.created_at|time:"g:i A" }}</span>
+      {% if msg.model_used %}<span>· {{ msg.model_used }}</span>{% endif %}
+      {% if msg.tokens_used %}<span>· {{ msg.tokens_used }} tokens</span>{% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}

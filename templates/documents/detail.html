@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.title }} — KnowledgeRAG{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <div class="mb-6">
+    <a href="{% url 'documents:dashboard' %}" class="text-sm text-gray-500 hover:text-gray-700">← Documents</a>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+    <!-- Header -->
+    <div class="px-6 py-5 border-b border-gray-100">
+      <div class="flex items-start justify-between">
+        <div>
+          <h1 class="text-xl font-bold text-gray-900">{{ doc.title }}</h1>
+          {% if doc.description %}<p class="text-gray-500 mt-1">{{ doc.description }}</p>{% endif %}
+        </div>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium
+          {% if doc.status == 'ready' %}bg-green-100 text-green-700
+          {% elif doc.status == 'processing' %}bg-yellow-100 text-yellow-700
+          {% elif doc.status == 'failed' %}bg-red-100 text-red-700
+          {% else %}bg-gray-100 text-gray-600{% endif %}">
+          {{ doc.get_status_display }}
+        </span>
+      </div>
+
+      <!-- Metadata row -->
+      <div class="flex flex-wrap gap-4 mt-4 text-sm text-gray-500">
+        <span class="flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          {{ doc.file_type|upper }} · {{ doc.file_size_display }}
+        </span>
+        {% if doc.page_count %}<span>{{ doc.page_count }} pages</span>{% endif %}
+        {% if doc.chunk_count %}<span>{{ doc.chunk_count }} chunks indexed</span>{% endif %}
+        <span>Uploaded {{ doc.created_at|date:"N j, Y" }}</span>
+        {% if doc.processed_at %}<span>Processed {{ doc.processed_at|timesince }} ago</span>{% endif %}
+      </div>
+    </div>
+
+    <!-- Actions -->
+    {% if doc.is_ready %}
+    <div class="px-6 py-4 bg-blue-50 border-b border-blue-100">
+      <a href="{% url 'chat:new' %}?docs={{ doc.id }}"
+         class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition-colors">
+        💬 Start Chatting with this Document
+      </a>
+    </div>
+    {% endif %}
+
+    <!-- Chunk preview -->
+    {% if chunks %}
+    <div class="px-6 py-5">
+      <h2 class="font-semibold text-gray-900 mb-4">Content Preview (first {{ chunks|length }} chunks)</h2>
+      <div class="space-y-3">
+        {% for chunk in chunks %}
+        <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs font-medium text-blue-700 bg-blue-100 px-2 py-0.5 rounded">Chunk {{ chunk.chunk_index }}</span>
+            {% if chunk.page_number %}<span class="text-xs text-gray-400">Page {{ chunk.page_number }}</span>{% endif %}
+            <span class="text-xs text-gray-400 ml-auto">~{{ chunk.token_count }} tokens</span>
+          </div>
+          <p class="text-sm text-gray-700 leading-relaxed">{{ chunk.content|truncatechars:400 }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if doc.status == 'failed' %}
+    <div class="px-6 py-4 bg-red-50 border-t border-red-100">
+      <h3 class="font-medium text-red-800 mb-1">Processing Error</h3>
+      <p class="text-sm text-red-700">{{ doc.error_message }}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

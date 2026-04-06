@@ -1,0 +1,108 @@
+<!-- Document card — used both in grid and HTMX responses -->
+<div id="doc-{{ doc.id }}"
+     class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all group animate-fade-in"
+     {% if doc.is_processing %}
+     hx-get="{% url 'documents:status' doc.id %}"
+     hx-trigger="every 3s"
+     hx-target="#doc-{{ doc.id }}"
+     hx-swap="outerHTML"
+     {% endif %}>
+
+  <div class="p-4">
+    <!-- File type badge + status -->
+    <div class="flex items-start justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <!-- File type icon -->
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold
+          {% if doc.file_type == 'pdf' %}bg-red-100 text-red-700
+          {% elif doc.file_type == 'docx' %}bg-blue-100 text-blue-700
+          {% elif doc.file_type == 'txt' %}bg-gray-100 text-gray-700
+          {% else %}bg-purple-100 text-purple-700{% endif %}">
+          {{ doc.file_type|upper }}
+        </div>
+        <!-- Status badge -->
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium
+          {% if doc.status == 'ready' %}bg-green-100 text-green-700
+          {% elif doc.status == 'processing' %}bg-yellow-100 text-yellow-700
+          {% elif doc.status == 'failed' %}bg-red-100 text-red-700
+          {% else %}bg-gray-100 text-gray-600{% endif %}">
+          {% if doc.is_processing %}
+          <span class="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse-dot"></span>
+          {% elif doc.status == 'ready' %}
+          <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+          {% endif %}
+          {{ doc.get_status_display }}
+        </span>
+      </div>
+
+      <!-- Actions dropdown -->
+      <div x-data="{ open: false }" class="relative">
+        <button @click="open = !open"
+                class="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
+          </svg>
+        </button>
+        <div x-show="open" x-cloak @click.away="open = false"
+             class="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-10">
+          {% if doc.is_ready %}
+          <a href="{% url 'chat:new' %}?docs={{ doc.id }}"
+             class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+            💬 Chat with this
+          </a>
+          {% endif %}
+          <a href="{% url 'documents:detail' doc.id %}"
+             class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+            View details
+          </a>
+          <hr class="my-1 border-gray-100">
+          <button
+            hx-post="{% url 'documents:delete' doc.id %}"
+            hx-confirm="Delete '{{ doc.title }}'? This cannot be undone."
+            hx-target="#doc-{{ doc.id }}"
+            hx-swap="outerHTML swap:0.3s"
+            class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Title & description -->
+    <h3 class="font-semibold text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
+      {{ doc.title }}
+    </h3>
+    {% if doc.description %}
+    <p class="text-xs text-gray-500 line-clamp-2 mb-2">{{ doc.description }}</p>
+    {% endif %}
+
+    <!-- Metadata -->
+    <div class="flex items-center gap-3 text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
+      <span>{{ doc.file_size_display }}</span>
+      {% if doc.chunk_count %}
+      <span>·</span>
+      <span>{{ doc.chunk_count }} chunks</span>
+      {% endif %}
+      {% if doc.page_count %}
+      <span>·</span>
+      <span>{{ doc.page_count }}p</span>
+      {% endif %}
+    </div>
+    <p class="text-xs text-gray-400 mt-1">{{ doc.created_at|timesince }} ago</p>
+
+    {% if doc.status == 'failed' and doc.error_message %}
+    <p class="mt-2 text-xs text-red-500 bg-red-50 rounded p-2">
+      {{ doc.error_message|truncatechars:100 }}
+    </p>
+    {% endif %}
+  </div>
+
+  {% if doc.is_ready %}
+  <div class="px-4 pb-4">
+    <a href="{% url 'chat:new' %}?docs={{ doc.id }}"
+       class="block w-full text-center py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+      Start Chat →
+    </a>
+  </div>
+  {% endif %}
+</div>
